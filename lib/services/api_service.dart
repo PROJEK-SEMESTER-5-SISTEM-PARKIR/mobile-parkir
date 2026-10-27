@@ -1,5 +1,5 @@
 class ApiService {
-  static const String serverIp = "192.168.1.5";
+  static const String serverIp = "192.168.0.49";
   static const String serverPort = "8000";
   // Emulator Android: ganti serverIp jadi "10.0.2.2"
 

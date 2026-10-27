@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
+import 'services/auth_gate.dart';
 
-void main() => runApp(const MyApp());
+void main() => runApp(const ParkirApp());
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ParkirApp extends StatelessWidget {
+  const ParkirApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      title: 'ParkVisi',
       debugShowCheckedModeBanner: false,
-      home: LoginScreen(),
+      // tema kamu yang sudah ada tetap dipakai di sini
+      home: const AuthGate(),
     );
   }
 }
