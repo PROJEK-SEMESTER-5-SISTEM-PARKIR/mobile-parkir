@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/dashboard_data.dart';
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
+import 'izin_akses_screen.dart';
 import 'login_screen.dart';
 
 /// Warna mengikuti web ParkVisi (sama dengan layar login).
@@ -21,8 +22,18 @@ class _Warna {
 }
 
 const _bulan = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
 ];
 
 String _tanggal(DateTime d) => '${d.day} ${_bulan[d.month - 1]} ${d.year}';
@@ -90,9 +101,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _sedangKeluar = true;
     await AuthService.logout();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   String get _nama =>
@@ -155,17 +166,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               if (snap.hasError) {
                 if (snap.error is SesiBerakhirException) {
-                  WidgetsBinding.instance
-                      .addPostFrameCallback((_) => _keLogin());
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _keLogin(),
+                  );
                   return halaman(
                     paket: const _PaketMemuat(),
                     isi: const SizedBox.shrink(),
                   );
                 }
-                return halaman(
-                  paket: null,
-                  isi: _Galat(onUlang: _muatUlang),
-                );
+                return halaman(paket: null, isi: _Galat(onUlang: _muatUlang));
               }
 
               final data = snap.requireData;
@@ -267,10 +276,7 @@ class _Kepala extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (paket != null) ...[
-                  const SizedBox(height: 22),
-                  paket!,
-                ],
+                if (paket != null) ...[const SizedBox(height: 22), paket!],
               ],
             ),
           ),
@@ -344,8 +350,10 @@ class _KartuPaket extends StatelessWidget {
                 color: const Color(0x1AFFFFFF),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.workspace_premium_outlined,
-                  color: Colors.white70),
+              child: const Icon(
+                Icons.workspace_premium_outlined,
+                color: Colors.white70,
+              ),
             ),
             const SizedBox(width: 14),
             const Expanded(
@@ -395,8 +403,11 @@ class _KartuPaket extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.workspace_premium,
-                  color: _Warna.amber, size: 22),
+              const Icon(
+                Icons.workspace_premium,
+                color: _Warna.amber,
+                size: 22,
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -586,64 +597,94 @@ class _KartuKendaraan extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: k.didalam ? _Warna.tealSoft : _Warna.paper,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              k.motor ? Icons.two_wheeler : Icons.directions_car,
-              color: k.didalam ? _Warna.tealGelap : _Warna.muted,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  k.plat,
-                  style: const TextStyle(
-                    color: _Warna.navy,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                  ),
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: k.didalam ? _Warna.tealSoft : _Warna.paper,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  k.motor ? 'Motor' : 'Mobil',
-                  style: const TextStyle(color: _Warna.muted, fontSize: 13),
+                child: Icon(
+                  k.motor ? Icons.two_wheeler : Icons.directions_car,
+                  color: k.didalam ? _Warna.tealGelap : _Warna.muted,
                 ),
-                if (masuk != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule,
-                          size: 15, color: _Warna.tealGelap),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          'Masuk ${_jam(masuk)} · ${_durasi(DateTime.now().difference(masuk))}',
-                          style: const TextStyle(
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      k.plat,
+                      style: const TextStyle(
+                        color: _Warna.navy,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      k.motor ? 'Motor' : 'Mobil',
+                      style: const TextStyle(color: _Warna.muted, fontSize: 13),
+                    ),
+                    if (masuk != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.schedule,
+                            size: 15,
                             color: _Warna.tealGelap,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              'Masuk ${_jam(masuk)} · ${_durasi(DateTime.now().difference(masuk))}',
+                              style: const TextStyle(
+                                color: _Warna.tealGelap,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                ],
-              ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _LencanaStatus(didalam: k.didalam),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => IzinAksesScreen(kendaraan: k)),
+              ),
+              icon: const Icon(Icons.person_add_alt_1, size: 18),
+              label: const Text('Beri akses tamu'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _Warna.navy,
+                side: const BorderSide(color: _Warna.garis),
+                minimumSize: const Size.fromHeight(42),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          _LencanaStatus(didalam: k.didalam),
         ],
       ),
     );
@@ -696,8 +737,11 @@ class _KosongKendaraan extends StatelessWidget {
               color: _Warna.paper,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.directions_car_outlined,
-                size: 28, color: _Warna.muted),
+            child: const Icon(
+              Icons.directions_car_outlined,
+              size: 28,
+              color: _Warna.muted,
+            ),
           ),
           const SizedBox(height: 12),
           const Text(
