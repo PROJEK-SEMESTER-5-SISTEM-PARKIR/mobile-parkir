@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/dashboard_data.dart';
+import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
 import 'izin_akses_screen.dart';
@@ -109,11 +113,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String get _nama =>
       (widget.user['name'] ?? widget.user['phone'] ?? '').toString();
 
-  void _panggilPetugas() {
-    // TODO: kirim plat, waktu, gerbang, dan foto kejadian ke pos petugas.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur panggil petugas belum tersambung.')),
+  // ───────── Panggil petugas ─────────
+
+  bool _memanggil = false;
+
+  Future<void> _panggilPetugas() async {
+    if (_memanggil) return;
+
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: const Icon(Icons.support_agent, size: 36, color: _Warna.amber),
+        title: const Text('Panggil petugas?'),
+        content: const Text(
+          'Bel di gerbang akan berbunyi dan pesan WhatsApp dikirim ke petugas. '
+          'Gunakan hanya jika Anda butuh bantuan.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _Warna.amber,
+              foregroundColor: _Warna.navy,
+              elevation: 0,
+            ),
+            child: const Text('Ya, panggil'),
+          ),
+        ],
+      ),
     );
+    if (yakin != true || !mounted) return;
+
+    setState(() => _memanggil = true);
+    String pesan;
+    try {
+      final token = await AuthService.getToken();
+      final res = await http
+          .post(
+            Uri.parse(ApiService.panggilPetugas),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      pesan = body['message']?.toString() ?? 'Permintaan dikirim.';
+    } catch (_) {
+      pesan = 'Tidak bisa terhubung ke server. Coba lagi.';
+    }
+
+    if (!mounted) return;
+    setState(() => _memanggil = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(pesan)));
+  }
+
+  // ───────── Perpanjang ─────────
+
+  Future<void> _perpanjang() async {
+    final berhasil = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const _PerpanjangSementara()),
+    );
+    // Setelah kembali dari layar perpanjang, muat ulang supaya status terbaru tampil
+    if (berhasil == true) _muatUlang();
   }
 
   @override
@@ -125,14 +196,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Scaffold(
         backgroundColor: _Warna.paper,
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: _panggilPetugas,
-          backgroundColor: _Warna.amber,
+          onPressed: _memanggil ? null : _panggilPetugas,
+          backgroundColor: _memanggil ? _Warna.garis : _Warna.amber,
           foregroundColor: _Warna.navy,
           elevation: 3,
-          icon: const Icon(Icons.support_agent),
-          label: const Text(
-            'Panggil petugas',
-            style: TextStyle(fontWeight: FontWeight.w700),
+          icon: _memanggil
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: _Warna.navy,
+                  ),
+                )
+              : const Icon(Icons.support_agent),
+          label: Text(
+            _memanggil ? 'Memanggil...' : 'Panggil petugas',
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
         body: RefreshIndicator(
@@ -179,11 +259,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               final data = snap.requireData;
               return halaman(
-                paket: _KartuPaket(paket: data.paket),
+                paket: _KartuPaket(
+                  paket: data.paket,
+                  menunggu: false, // nanti diisi dari API (ada pembayaran menunggu admin)
+                  onPerpanjang: _perpanjang,
+                ),
                 isi: _DaftarKendaraan(kendaraan: data.kendaraan),
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── Layar perpanjang (sementara) ─────────────────────────────
+
+/// Placeholder. Nanti diganti layar Perpanjang yang sebenarnya
+/// (pilih paket, tagihan, metode bayar, unggah bukti).
+class _PerpanjangSementara extends StatelessWidget {
+  const _PerpanjangSementara();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _Warna.paper,
+      appBar: AppBar(
+        title: const Text('Perpanjang paket'),
+        backgroundColor: Colors.white,
+        foregroundColor: _Warna.navy,
+        elevation: 0,
+      ),
+      body: const Center(
+        child: Text(
+          'Layar perpanjang segera hadir',
+          style: TextStyle(color: _Warna.muted),
         ),
       ),
     );
@@ -332,7 +443,13 @@ class _PaketMemuat extends StatelessWidget {
 
 class _KartuPaket extends StatelessWidget {
   final PaketAktif? paket;
-  const _KartuPaket({required this.paket});
+  final bool menunggu;
+  final VoidCallback onPerpanjang;
+  const _KartuPaket({
+    required this.paket,
+    required this.menunggu,
+    required this.onPerpanjang,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -493,36 +610,114 @@ class _KartuPaket extends StatelessWidget {
               ),
             ),
           ],
-          if (habis || hampir) ...[
+          if (menunggu) ...[
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: habis
-                    ? const Color(0x26FFFFFF)
-                    : const Color(0x24FFB100),
+                color: const Color(0x2600C2A8),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0x4D00C2A8)),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: habis ? Colors.white : _Warna.amber,
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: _Warna.teal,
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      habis
-                          ? 'Paket sudah habis. Perpanjang di pos petugas.'
-                          : 'Segera perpanjang di pos petugas.',
-                      style: const TextStyle(
+                      'Pembayaran sedang diverifikasi petugas. Paket akan diperpanjang setelah disetujui.',
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 12.5,
+                        height: 1.4,
                       ),
                     ),
                   ),
                 ],
+              ),
+            ),
+          ] else if (habis || hampir) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: habis
+                    ? const Color(0x26FFFFFF)
+                    : const Color(0x24FFB100),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: habis ? Colors.white : _Warna.amber,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          habis
+                              ? 'Paket sudah habis. Perpanjang agar bisa masuk lagi.'
+                              : 'Paket segera berakhir. Perpanjang sebelum habis.',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: onPerpanjang,
+                    icon: const Icon(Icons.autorenew_rounded, size: 20),
+                    label: const Text('Perpanjang sekarang'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _Warna.amber,
+                      foregroundColor: _Warna.navy,
+                      elevation: 0,
+                      minimumSize: const Size.fromHeight(46),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onPerpanjang,
+                icon: const Icon(
+                  Icons.autorenew_rounded,
+                  size: 16,
+                  color: Colors.white70,
+                ),
+                label: const Text(
+                  'Perpanjang lebih awal',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
@@ -667,7 +862,9 @@ class _KartuKendaraan extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => IzinAksesScreen(kendaraan: k)),
+                MaterialPageRoute(
+                  builder: (_) => IzinAksesScreen(kendaraan: k),
+                ),
               ),
               icon: const Icon(Icons.person_add_alt_1, size: 18),
               label: const Text('Beri akses tamu'),

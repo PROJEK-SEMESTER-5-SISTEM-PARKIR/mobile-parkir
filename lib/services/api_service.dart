@@ -1,5 +1,5 @@
 class ApiService {
-  static const String serverIp = "192.168.0.31";
+  static const String serverIp = "192.168.1.16";
   static const String serverPort = "8000";
   // Emulator Android: ganti serverIp jadi "10.0.2.2"
 
@@ -20,4 +20,5 @@ class ApiService {
   static String get notifikasi => '$baseUrl/notifikasi';
   static String notifikasiBuzzer(int id) => '$baseUrl/notifikasi/$id/buzzer';
   static String notifikasiRespon(int id) => '$baseUrl/notifikasi/$id/respon';
+  static String get panggilPetugas => '$baseUrl/panggil-petugas';
 }
