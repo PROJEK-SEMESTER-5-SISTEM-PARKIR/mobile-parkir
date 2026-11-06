@@ -8,8 +8,10 @@ import '../models/dashboard_data.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
+import '../services/perpanjang_service.dart';
 import 'izin_akses_screen.dart';
 import 'login_screen.dart';
+import 'perpanjang_screen.dart';
 
 /// Warna mengikuti web ParkVisi (sama dengan layar login).
 class _Warna {
@@ -80,14 +82,26 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late Future<DashboardData> _future;
+  bool _menunggu = false;
 
   @override
   void initState() {
     super.initState();
     _future = DashboardService.ambil();
+    _cekMenunggu();
+  }
+
+  Future<void> _cekMenunggu() async {
+    try {
+      final m = await PerpanjangService.menunggu();
+      if (mounted) setState(() => _menunggu = m);
+    } catch (_) {
+      // abaikan; banner hanya pelengkap
+    }
   }
 
   Future<void> _muatUlang() async {
+    _cekMenunggu();
     final baru = DashboardService.ambil();
     setState(() => _future = baru);
     try {
@@ -180,11 +194,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ───────── Perpanjang ─────────
 
   Future<void> _perpanjang() async {
-    final berhasil = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const _PerpanjangSementara()),
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const PerpanjangScreen()),
     );
-    // Setelah kembali dari layar perpanjang, muat ulang supaya status terbaru tampil
-    if (berhasil == true) _muatUlang();
+    // Selalu muat ulang: paket mungkin sudah berubah atau status menunggu berubah
+    if (!mounted) return;
+    _muatUlang();
   }
 
   @override
@@ -261,40 +276,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               return halaman(
                 paket: _KartuPaket(
                   paket: data.paket,
-                  menunggu: false, // nanti diisi dari API (ada pembayaran menunggu admin)
+                  menunggu: _menunggu,
                   onPerpanjang: _perpanjang,
                 ),
                 isi: _DaftarKendaraan(kendaraan: data.kendaraan),
               );
             },
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ───────────────────────────── Layar perpanjang (sementara) ─────────────────────────────
-
-/// Placeholder. Nanti diganti layar Perpanjang yang sebenarnya
-/// (pilih paket, tagihan, metode bayar, unggah bukti).
-class _PerpanjangSementara extends StatelessWidget {
-  const _PerpanjangSementara();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _Warna.paper,
-      appBar: AppBar(
-        title: const Text('Perpanjang paket'),
-        backgroundColor: Colors.white,
-        foregroundColor: _Warna.navy,
-        elevation: 0,
-      ),
-      body: const Center(
-        child: Text(
-          'Layar perpanjang segera hadir',
-          style: TextStyle(color: _Warna.muted),
         ),
       ),
     );

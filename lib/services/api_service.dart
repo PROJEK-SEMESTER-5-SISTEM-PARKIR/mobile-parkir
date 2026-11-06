@@ -21,4 +21,8 @@ class ApiService {
   static String notifikasiBuzzer(int id) => '$baseUrl/notifikasi/$id/buzzer';
   static String notifikasiRespon(int id) => '$baseUrl/notifikasi/$id/respon';
   static String get panggilPetugas => '$baseUrl/panggil-petugas';
+  static String get perpanjang => '$baseUrl/perpanjang';
+  static String get perpanjangStatus => '$baseUrl/perpanjang/status';
+  static String perpanjangBukti(int id) => '$baseUrl/perpanjang/$id/bukti';
+  static String perpanjangItem(int id) => '$baseUrl/perpanjang/$id';
 }
